@@ -1,1 +1,0 @@
-# Emhaki-wishket_project
