@@ -96,7 +96,7 @@ class AWSViewSet(viewsets.ViewSet):
                 # month 값이 없다면 해당 년 데이터 필터링
                 elif not month and int(row['userId']) == user_id and int(year_interval) == year:
                     filtered_rows.append(row)
-            # print(filtered_rows)
+
             # 월별로 분리하여 계산하기
             result = {}
             month_costs = {}
