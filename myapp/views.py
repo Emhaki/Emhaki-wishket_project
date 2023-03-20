@@ -8,7 +8,6 @@ import json, datetime, zipfile, csv, io, os
 import urllib.request
 import requests
 from decimal import Decimal
-from datetime import datetime
 
 # @api_view(['POST'])
 # def usage(request):
@@ -119,7 +118,7 @@ class AWSViewSet(viewsets.ViewSet):
                 # 오류 처리 조건
                 # 데이터 URL의 파일에 환율 정보가 없는 경우
                 if not row['exchangeRate']:
-                    return Response({'error': "데이터 URL 파일에 환율 정보가 없습니다."})
+                    return Response({'error': "데이터 URL 파일에 환율 정보가 없습니다."}, status=status.HTTP_400_BAD_REQUEST)
 
                 # 필터링 조건 확인
                 # month 값이 있다면 해당 월 데이터 필터링
