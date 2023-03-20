@@ -9,7 +9,6 @@
 [3. 과제 소감](#3과제-소감)
 
 ## 1.과제 접근 방식
-<br>
 
 ### [시도 1] AWS lambda + AWS gateway
 <br>
@@ -227,8 +226,6 @@ class AWSViewSet(viewsets.ViewSet):
 <br>
 
 ## 3.과제 소감
-
-<br>
 
 - serverless 접근 방식으로 인해 AWS lambda, AWS gateway, Zappa를 공부하면서 꽤 많은 시간이 걸렸습니다. 
 
