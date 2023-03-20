@@ -15,5 +15,6 @@ from django.urls import path
 from .views import AWSViewSet
 
 urlpatterns = [
-    path('aws/usage/<int:year>/<int:month>/', AWSViewSet.as_view({'get': 'list'}), name='usage'),
+    path('aws/usage/<int:year>/<int:month>/', AWSViewSet.as_view({'get': 'usage'}), name='usage'),
+    path('aws/bill/', AWSViewSet.as_view({'post': 'bill'}), name="bill")
 ]

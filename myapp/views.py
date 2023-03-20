@@ -6,6 +6,9 @@ from rest_framework.response import Response
 from .serializers import UsageDateSerializer
 import json, datetime, zipfile, csv, io, os
 import urllib.request
+import requests
+from decimal import Decimal
+from datetime import datetime
 
 # @api_view(['POST'])
 # def usage(request):
@@ -17,27 +20,8 @@ import urllib.request
 
 class AWSViewSet(viewsets.ViewSet):
     
-    def list(self, request, year, month):
-        # year와 month는 URL에서 받은 파라미터
+    def usage(self, request, year, month):
 
-        # 다른 함수에 전달할 수 있도록 year와 month를 int 타입으로 변환
-        year = int(year)
-        month = int(month)
-
-        # 다른 함수에 전달할 수 있도록 year와 month를 인자로 넘겨줌
-        result = usage(year, month)
-
-        return Response(result)
-        
-def usage(year, month):
-        
-        # 날짜와 월을 입력할 수 있는 파라미터
-        # 사용자가 https://clcbp2jct1.execute-api.ap-northeast-2.amazonaws.com/aws/usage/{year}/{monty}/ 에 year, month 정보를 입력하면 해당 년 월을 기준으로 데이터 출력
-        # request로 변경할 것
-        # year = event['pathParameters']['year']
-        # month = event['pathParameters']['month']
-
-        
         # 예외 처리 조건 2
         # 입력해야 할 year, month 값이 없는 경우 
         if not year or not month:
@@ -99,9 +83,97 @@ def usage(year, month):
         writer.writerows(filtered_rows)
         csv_content = csv_buffer.getvalue()
 
-        # HttpResponse 객체 생성
-        response = HttpResponse(csv_content, content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename=usage_{year}_{month}.csv'
+        # 필터링 한 값 return
+        return {
+            'statusCode': 200,
+            'headers': {
+                'Content-Type': 'text/csv',
+                'Content-Disposition': f'attachment; filename=usage.csv'
+            },
+            'body': csv_content
+        }
+    
+    @action(detail=False, methods=['post'])
+    def bill(self, request):
+        # POST 요청에서 form-data 파라미터 가져오기
+        user_id = request.data.get('user_id')
+        year = request.data.get('year')
+        month = request.data.get('month')
 
-        # 파일 다운로드를 위한 응답 반환
-        return response
+        # 데이터 압축 파일 URL
+        data_url = "http://dtgqz5l2d6wuw.cloudfront.net/coding_test_1.csv.zip"
+        # 압축 파일 다운로드
+        r = requests.get(data_url)
+        # 압축 파일을 메모리에서 읽어들이기
+        z = zipfile.ZipFile(io.BytesIO(r.content))
+        # csv 파일 읽기
+        with z.open('coding_test_1.csv') as f:
+            reader = csv.DictReader(io.TextIOWrapper(f))
+            # 필터링된 row들을 저장할 리스트
+            filtered_rows = []
+            for row in reader:
+                # TimeInterval에서 year, month 추출 => str타입
+                year_interval = row['TimeInterval'].split('-')[0]
+                month_interval = row['TimeInterval'].split('-')[1]
+
+                # 오류 처리 조건
+                # 데이터 URL의 파일에 환율 정보가 없는 경우
+                if not row['exchangeRate']:
+                    return Response({'error': "데이터 URL 파일에 환율 정보가 없습니다."})
+
+                # 필터링 조건 확인
+                # month 값이 있다면 해당 월 데이터 필터링
+                if int(month_interval) == month and int(row['userId']) == user_id and int(year_interval) == year:
+                    filtered_rows.append(row)
+                # month 값이 없다면 해당 년 데이터 필터링
+                elif not month and int(row['userId']) == user_id and int(year_interval) == year:
+                    filtered_rows.append(row)
+            # print(filtered_rows)
+            # 월별로 분리하여 계산하기
+            result = {}
+            month_costs = {}
+            month_exchange_rates = {}
+
+            for row_data in filtered_rows:
+                mth = row_data['TimeInterval'].split('-')[1]
+                # exchange_rate 계산
+                exchange_rate = Decimal((row_data['exchangeRate']))
+                if mth not in month_exchange_rates:
+                    month_exchange_rates[mth] = []
+                month_exchange_rates[mth].append(exchange_rate)
+
+                # cost 계산
+                cost = Decimal((row_data['Cost']))
+                if mth not in month_costs:
+                    month_costs[mth] = Decimal(0)
+                month_costs[mth] += cost
+                
+                # 각 월별로 환율, 요금, 원화요금 계산         
+                # 월별 환율 계산 (소수점 8자리까지 계산)
+                exchange_rate_avg = sum(month_exchange_rates[mth]) / len(month_exchange_rates[mth])
+                exchange_rate_avg = round(exchange_rate_avg, 8)
+
+                # 월별 요금 계산
+                mth_cost = month_costs[mth]
+
+                # 월별 원화 요금 계산 (소수점 2의 자리에서 버림)
+                cost_krw = round((mth_cost * exchange_rate_avg), 2)
+                
+                # 결과값 저장
+                if mth not in result:
+                    result[mth] = []
+                    
+                result[mth] = {
+                    "exchange_rate": exchange_rate_avg,
+                    "cost": mth_cost,
+                    "cost_krw": cost_krw
+                }
+              
+            # 결과값 반환
+            return Response(result)
+
+# {
+#  "user_id": 12344321,
+#  "year": 2022,
+#  "month": 11
+# }
