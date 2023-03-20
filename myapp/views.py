@@ -1,10 +1,7 @@
-from collections import defaultdict
-from django.http import HttpResponse, HttpResponseBadRequest
 from rest_framework import status, viewsets
-from rest_framework.decorators import api_view, action
+from rest_framework.decorators import action
 from rest_framework.response import Response
-from .serializers import UsageDateSerializer
-import json, datetime, zipfile, csv, io, os
+import zipfile, csv, io
 import urllib.request
 import requests
 from decimal import Decimal
